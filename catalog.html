@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power BI Report Catalog</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 30px 20px; margin-bottom: 30px; }
+        header h1 { font-size: 2rem; margin-bottom: 10px; }
+        .stats { display: flex; gap: 30px; margin-top: 15px; flex-wrap: wrap; }
+        .stat { background: rgba(255,255,255,0.1); padding: 10px 20px; border-radius: 8px; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.8; }
+        .search-bar { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .search-bar input { flex: 1; min-width: 250px; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; }
+        .search-bar input:focus { outline: none; border-color: #0078d4; }
+        .search-bar select { padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; min-width: 200px; }
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .tab { padding: 12px 24px; background: #fff; border: none; cursor: pointer; font-size: 1rem; border-radius: 8px 8px 0 0; transition: all 0.2s; }
+        .tab:hover { background: #e8e8e8; }
+        .tab.active { background: #0078d4; color: white; }
+        .tab-content { display: none; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden; }
+        .tab-content.active { display: block; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8f9fa; padding: 14px 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #ddd; position: sticky; top: 0; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
+        tr:hover { background: #f8f9fa; }
+        .report-link { color: #0078d4; text-decoration: none; font-weight: 500; }
+        .report-link:hover { text-decoration: underline; }
+        .description { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #666; font-size: 0.9rem; }
+        .dataset-id { font-family: monospace; font-size: 0.85rem; color: #666; }
+        .no-data { text-align: center; padding: 40px; color: #888; }
+        .results-count { padding: 10px 15px; background: #e8f4fd; border-bottom: 1px solid #ddd; font-size: 0.9rem; color: #0078d4; }
+        footer { text-align: center; padding: 20px; color: #888; font-size: 0.85rem; }
+        .hidden { display: none !important; }
+        @media (max-width: 768px) { .stats { flex-direction: column; gap: 10px; } .search-bar { flex-direction: column; } .search-bar input, .search-bar select { width: 100%; } }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Power BI Report Catalog</h1>
+            <p>Search and discover reports across the organization</p>
+            <div class="stats">
+                <div class="stat"><div class="stat-value">100</div><div class="stat-label">Reports</div></div>
+                <div class="stat"><div class="stat-value">14</div><div class="stat-label">Workspaces</div></div>
+                <div class="stat"><div class="stat-value">5</div><div class="stat-label">Potential Duplicates</div></div>
+                <div class="stat"><div class="stat-value">2</div><div class="stat-label">Shared Datasets</div></div>
+            </div>
+        </div>
+    </header>
+    <div class="container">
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Search reports by name..." onkeyup="filterTable()">
+            <select id="workspaceFilter" onchange="filterTable()">
+                <option value="">All Workspaces</option>
+                <option value="CABS GCI">CABS GCI</option>
+                <option value="CABS MTA">CABS MTA</option>
+                <option value="CBU Reporting DS">CBU Reporting DS</option>
+                <option value="CSG Global Fantasy Premier League Banter">CSG Global Fantasy Premier League Banter</option>
+                <option value="CSG Track">CSG Track</option>
+                <option value="Change CAB/eCAB">Change CAB/eCAB</option>
+                <option value="FPL CSG">FPL CSG</option>
+                <option value="General CSG Reports">General CSG Reports</option>
+                <option value="Global Employee">Global Employee</option>
+                <option value="IME - POC App">IME - POC App</option>
+                <option value="Internal Microsoft Reporting">Internal Microsoft Reporting</option>
+                <option value="Jira">Jira</option>
+                <option value="PBI Migration - QA">PBI Migration - QA</option>
+                <option value="SAFe Agile Practices">SAFe Agile Practices</option>
+            </select>
+        </div>
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('catalog')">Report Catalog</button>
+            <button class="tab" onclick="showTab('duplicates')">Potential Duplicates</button>
+            <button class="tab" onclick="showTab('shared')">Shared Datasets</button>
+        </div>
+        <div id="catalog" class="tab-content active">
+            <div class="results-count" id="resultsCount">Showing 100 reports</div>
+            <table>
+                <thead><tr><th>Report Name</th><th>Workspace</th><th>Description</th><th>Modified</th><th>Dataset</th></tr></thead>
+                <tbody id="catalogBody">
+            <tr data-workspace="CBU Reporting DS" data-name="cbu client facing status">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/97a26d11-63ae-492d-bf82-21eba85896a5" target="_blank" class="report-link">CBU Client Facing Status</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">e3853875...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="platform feature project">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/47e95f86-db09-45bc-b077-b03b81847520" target="_blank" class="report-link">Platform Feature Project</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">e3853875...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="slbos and eni billing">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/633fb309-6198-4981-8ac6-952c9398f38a" target="_blank" class="report-link">SLBOS and ENI Billing</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">2be55d29...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="major release feature change">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/6915ded7-b352-474d-9062-80b945fb2cc4" target="_blank" class="report-link">Major Release feature change</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">c65ab402...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="feature project analysis">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/e480a761-a368-4018-9e1d-82e5ce8aefa3" target="_blank" class="report-link">Feature Project Analysis</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">e3853875...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="slbos">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/08d45056-6bfe-42b2-9b1b-8efa227e29ce" target="_blank" class="report-link">SLBOS</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">2be55d29...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="report usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/48fdf59c-4081-4379-a28f-48ad73c64429" target="_blank" class="report-link">Report Usage Metrics Report</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">3f3c93a5...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="ascendon">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/faa6b00e-933e-426d-b74d-4f8ce2bb9111" target="_blank" class="report-link">Ascendon</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">e3853875...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="cbu asc">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/06be0e7e-a284-4e80-bc81-4e8b62d7064d" target="_blank" class="report-link">CBU ASC</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">e3853875...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="hours by opn">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/6b4feb12-5548-41a3-855b-7e5646029a03" target="_blank" class="report-link">Hours by OPN</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">4d927ece...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="hours by feature project">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/37d6e9ec-2249-41f7-bbf3-75bad1b7bd4d" target="_blank" class="report-link">Hours by Feature Project</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">e3853875...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="dashboard usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/8faff78d-9baf-47a9-b090-b71a06db97b9" target="_blank" class="report-link">Dashboard Usage Metrics Report</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">bee04a62...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/a3158730-f5fe-4160-8d9c-96b2a0a9ad65" target="_blank" class="report-link">Usage Metrics Report</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">4ae08164...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="cbu client facing status_phase1">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/c7e53020-9759-4d89-9977-5e3c6881c767" target="_blank" class="report-link">CBU Client Facing Status_Phase1</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">1c535277...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="monthly details">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/129b8d6f-d0b3-4d10-b37b-74b30734f77a" target="_blank" class="report-link">Monthly Details</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">1c535277...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="user story status by cbu">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/dc7cbcae-6c01-4e30-9a84-08677e2cbe1a" target="_blank" class="report-link">User Story status by CBU</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">1c535277...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="cbu - charter features">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/21c65bc1-399f-4f9f-90d5-0f9137cd8e82" target="_blank" class="report-link">CBU - Charter Features</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">1c535277...</td>
+            </tr>
+            <tr data-workspace="CBU Reporting DS" data-name="startone">
+                <td><a href="https://app.powerbi.com/groups/a1d8e067-4e56-41b8-a8ba-b2080ef7251a/reports/b477edf2-e1ef-41b3-b58e-ffd693466dcd" target="_blank" class="report-link">StartOne</a></td>
+                <td>CBU Reporting DS</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">3e62f8d0...</td>
+            </tr>
+            <tr data-workspace="Jira" data-name="feature projects">
+                <td><a href="https://app.powerbi.com/groups/26d2c8e3-43b1-4345-87b8-f6b55b69d5ab/reports/efe25c71-5b48-45e0-b5c2-fc7207fd609a" target="_blank" class="report-link">Feature Projects</a></td>
+                <td>Jira</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">1c535277...</td>
+            </tr>
+            <tr data-workspace="Jira" data-name="feature projects - optimized">
+                <td><a href="https://app.powerbi.com/groups/26d2c8e3-43b1-4345-87b8-f6b55b69d5ab/reports/10f8df61-5c28-43b4-8a61-a8cb565c9778" target="_blank" class="report-link">Feature Projects - Optimized</a></td>
+                <td>Jira</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">ed7cffcd...</td>
+            </tr>
+            <tr data-workspace="Jira" data-name="report usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/26d2c8e3-43b1-4345-87b8-f6b55b69d5ab/reports/9cea9e43-94c3-4e53-a6fd-c6a81b892cda" target="_blank" class="report-link">Report Usage Metrics Report</a></td>
+                <td>Jira</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">8b0320d0...</td>
+            </tr>
+            <tr data-workspace="Jira" data-name="usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/26d2c8e3-43b1-4345-87b8-f6b55b69d5ab/reports/b201104a-2c52-4d8c-b86d-f1803554f1a5" target="_blank" class="report-link">Usage Metrics Report</a></td>
+                <td>Jira</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">1f4e63b2...</td>
+            </tr>
+            <tr data-workspace="CSG Global Fantasy Premier League Banter" data-name="manager transfers">
+                <td><a href="https://app.powerbi.com/groups/4d9dd1ee-57a7-4df1-8fba-12f8d315f023/reports/11524b49-3752-45be-bc85-f69640696704" target="_blank" class="report-link">Manager Transfers</a></td>
+                <td>CSG Global Fantasy Premier League Banter</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">06ee8d60...</td>
+            </tr>
+            <tr data-workspace="CSG Global Fantasy Premier League Banter" data-name="csg epl fantasy league">
+                <td><a href="https://app.powerbi.com/groups/4d9dd1ee-57a7-4df1-8fba-12f8d315f023/reports/52a03f0d-6a13-4686-afcb-c8519d7f9f0c" target="_blank" class="report-link">CSG EPL Fantasy League</a></td>
+                <td>CSG Global Fantasy Premier League Banter</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">00c05069...</td>
+            </tr>
+            <tr data-workspace="CSG Global Fantasy Premier League Banter" data-name="usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/4d9dd1ee-57a7-4df1-8fba-12f8d315f023/reports/c9739b9e-1aa6-4b31-b367-9bca93d20f16" target="_blank" class="report-link">Usage Metrics Report</a></td>
+                <td>CSG Global Fantasy Premier League Banter</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">b721a5f3...</td>
+            </tr>
+            <tr data-workspace="CSG Global Fantasy Premier League Banter" data-name="fantasy premier league">
+                <td><a href="https://app.powerbi.com/groups/4d9dd1ee-57a7-4df1-8fba-12f8d315f023/reports/c592f8f2-6a57-490e-93dd-5ad90bc8b424" target="_blank" class="report-link">Fantasy Premier League</a></td>
+                <td>CSG Global Fantasy Premier League Banter</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">fc21cce5...</td>
+            </tr>
+            <tr data-workspace="FPL CSG" data-name="fantasy premier league">
+                <td><a href="https://app.powerbi.com/groups/0e14ec75-ca70-4f4b-9ede-710a5236674b/reports/c329c687-6069-437e-88a7-15efce4605ca" target="_blank" class="report-link">Fantasy Premier League</a></td>
+                <td>FPL CSG</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">12c125e8...</td>
+            </tr>
+            <tr data-workspace="Global Employee" data-name="global employee">
+                <td><a href="https://app.powerbi.com/groups/6f52fe07-9d3b-40a1-9fd1-26c30c12fbcc/reports/60769cd3-51c2-472b-8c7f-9965d3e3faf4" target="_blank" class="report-link">Global Employee</a></td>
+                <td>Global Employee</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">a1c38642...</td>
+            </tr>
+            <tr data-workspace="Global Employee" data-name="list of all active employees and contractors">
+                <td><a href="https://app.powerbi.com/groups/6f52fe07-9d3b-40a1-9fd1-26c30c12fbcc/reports/b23de404-0729-43b6-9f2a-5ceec18c6f5e" target="_blank" class="report-link">List of all active employees and contractors</a></td>
+                <td>Global Employee</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">3d6e188f...</td>
+            </tr>
+            <tr data-workspace="Global Employee" data-name="report usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/6f52fe07-9d3b-40a1-9fd1-26c30c12fbcc/reports/c839514a-9fd3-4086-8b61-c8730185196b" target="_blank" class="report-link">Report Usage Metrics Report</a></td>
+                <td>Global Employee</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">e8e8301b...</td>
+            </tr>
+            <tr data-workspace="Global Employee" data-name="usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/6f52fe07-9d3b-40a1-9fd1-26c30c12fbcc/reports/0824c11e-6087-4019-883d-fc6f8e8ab5ce" target="_blank" class="report-link">Usage Metrics Report</a></td>
+                <td>Global Employee</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">2c352cab...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="crq task lookup report">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/ff53a70a-f744-49e9-ad9e-8998f443bf0c" target="_blank" class="report-link">CRQ Task Lookup Report</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">df21e103...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="precision ecare pay kiosk report">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/77421f86-bd9f-431e-b2df-343de3ce9b22" target="_blank" class="report-link">Precision eCare Pay Kiosk Report</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">df21e103...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="gam query v2">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/27b73c12-0632-47b0-a361-38c0a8107639" target="_blank" class="report-link">GAM query v2</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">4d7456ad...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="poc_report_2">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/5689c335-850d-4ecc-9a17-352885f82345" target="_blank" class="report-link">poc_report_2</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">79535a62...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/b6dc5530-b441-481c-884d-bd7189d341aa" target="_blank" class="report-link">Usage Metrics Report</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">f14c9328...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="clt insites">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/3bc5fece-a242-4630-af8f-205872e6f3f2" target="_blank" class="report-link">clt insites</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">1c535277...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="enterprise interfaces - yearly crq report">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/6ac574c1-22e6-4dd3-be3f-f6617a4408d4" target="_blank" class="report-link">Enterprise Interfaces - Yearly CRQ report</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">df21e103...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="my1">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/0cb25c7e-9906-437d-be54-516e5269a157" target="_blank" class="report-link">my1</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">41833761...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="github copilot">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/df33a982-2ef6-4454-868b-2de813e26f45" target="_blank" class="report-link">GitHub Copilot</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">916164b8...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="2024-ascendon forecast report v2_9.23.24">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/fab18008-8daf-433c-8af9-85acc9119a7c" target="_blank" class="report-link">2024-Ascendon Forecast Report V2_9.23.24</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">f42fe0aa...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="myhelix">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/adb4fdd3-2dc2-49e5-9174-fcea94200232" target="_blank" class="report-link">myHelix</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">df21e103...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="domo2pbi">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/b343f27c-2c38-4bae-a4a0-0bbc2e3aca3e" target="_blank" class="report-link">domo2pbi</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">44df1473...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="report_domo2pbi">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/280b2aa2-c163-444e-bcdb-41eed1c20a8a" target="_blank" class="report-link">report_domo2pbi</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">dd2802cb...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="dpt_feature bugs at a glance">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/e595caf3-d821-4f25-a841-36d01a30b694" target="_blank" class="report-link">DPT_Feature Bugs at a Glance</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">d1860845...</td>
+            </tr>
+            <tr data-workspace="General CSG Reports" data-name="report usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/ef8b916c-eeab-4ac5-b1fa-a6ce0a5b9170/reports/33e73ff0-6b9e-4d50-a562-c3d6129253ef" target="_blank" class="report-link">Report Usage Metrics Report</a></td>
+                <td>General CSG Reports</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">679d6cdc...</td>
+            </tr>
+            <tr data-workspace="Internal Microsoft Reporting" data-name="msft pana report">
+                <td><a href="https://app.powerbi.com/groups/f1f30e57-d4e5-4626-b0e0-2b469d2d8519/reports/97f364d2-7d3e-4e9d-9fea-66600b6a3330" target="_blank" class="report-link">MSFT PANA Report</a></td>
+                <td>Internal Microsoft Reporting</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">de114e5b...</td>
+            </tr>
+            <tr data-workspace="Internal Microsoft Reporting" data-name="msft m365 report">
+                <td><a href="https://app.powerbi.com/groups/f1f30e57-d4e5-4626-b0e0-2b469d2d8519/reports/b977166e-0772-4169-87e0-598bab793d11" target="_blank" class="report-link">MSFT M365 Report</a></td>
+                <td>Internal Microsoft Reporting</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">1dfc0069...</td>
+            </tr>
+            <tr data-workspace="Internal Microsoft Reporting" data-name="msft online store report">
+                <td><a href="https://app.powerbi.com/groups/f1f30e57-d4e5-4626-b0e0-2b469d2d8519/reports/70b55000-0515-4fd4-92e8-27f1d466d35f" target="_blank" class="report-link">MSFT Online Store Report</a></td>
+                <td>Internal Microsoft Reporting</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">19e54fa8...</td>
+            </tr>
+            <tr data-workspace="Internal Microsoft Reporting" data-name="msft devices report">
+                <td><a href="https://app.powerbi.com/groups/f1f30e57-d4e5-4626-b0e0-2b469d2d8519/reports/4d4f7c66-205d-4f76-afb3-17f5bb8f4190" target="_blank" class="report-link">MSFT Devices Report</a></td>
+                <td>Internal Microsoft Reporting</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">7eada7f4...</td>
+            </tr>
+            <tr data-workspace="Internal Microsoft Reporting" data-name="msft serial number report">
+                <td><a href="https://app.powerbi.com/groups/f1f30e57-d4e5-4626-b0e0-2b469d2d8519/reports/50000880-ac6f-4b53-916a-b96f3362110f" target="_blank" class="report-link">MSFT Serial Number Report</a></td>
+                <td>Internal Microsoft Reporting</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">70a6764c...</td>
+            </tr>
+            <tr data-workspace="Internal Microsoft Reporting" data-name="msft core report">
+                <td><a href="https://app.powerbi.com/groups/f1f30e57-d4e5-4626-b0e0-2b469d2d8519/reports/1272b1dc-6104-4fd2-9d39-3557413cd440" target="_blank" class="report-link">MSFT Core Report</a></td>
+                <td>Internal Microsoft Reporting</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">ec8362b8...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="digicel - use cases & features">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/a6e572c0-60d7-45cc-b9d4-c5936bb05685" target="_blank" class="report-link">Digicel - Use Cases & Features</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">dbc9af35...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="digicel - defect management report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/2032fa7e-61fc-4edb-ae78-9adecdd289d9" target="_blank" class="report-link">Digicel - Defect Management Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">dbc9af35...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="digicel - testing report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/f836fe0e-d504-4d94-bc3f-dcddec0e5dfa" target="_blank" class="report-link">Digicel - Testing Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">dbc9af35...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="comcast - use cases & features">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/88734441-d7f3-4664-81d2-795cdef7a131" target="_blank" class="report-link">Comcast - Use Cases & Features</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">71e09aff...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="comcast - testing report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/91d88e97-38fe-425b-99ed-0b4fa0eaaad6" target="_blank" class="report-link">Comcast - Testing Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">71e09aff...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="comcast - defect management report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/382bcd51-b37f-4e12-90b7-89f7b0d1c950" target="_blank" class="report-link">Comcast - Defect Management Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">71e09aff...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="telstra pacific - use cases & features">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/9a257fe7-171b-4591-84d0-0ae7da630cc0" target="_blank" class="report-link">Telstra Pacific - Use Cases & Features</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">192606ca...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="telstra pacific - defect management report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/8c9a770a-7c9f-43cb-99cc-de49a9be2917" target="_blank" class="report-link">Telstra Pacific - Defect Management Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">192606ca...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="telstra pacific - testing report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/8c8597bf-74bc-4aeb-90bd-0790d0ac9979" target="_blank" class="report-link">Telstra Pacific - Testing Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">192606ca...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="mascom - use cases & features">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/d29035e4-e114-4208-aa7a-d711231e81bd" target="_blank" class="report-link">Mascom - Use Cases & Features</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">52147da4...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="mascom - defect management report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/d9912cc1-4c4d-4a35-b253-0e021a0fb752" target="_blank" class="report-link">Mascom - Defect Management Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">52147da4...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="mascom - testing report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/f67a152e-5d0e-410a-994e-3beb212219da" target="_blank" class="report-link">Mascom - Testing Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">52147da4...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="mobily b2c - use case & features">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/e58226a5-1ed9-4214-9a68-5dcbb031efc5" target="_blank" class="report-link">Mobily B2C - Use Case & Features</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">9ff2572c...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="mobily b2c - defect management report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/990dea8d-64b3-4993-b155-66def3e04a60" target="_blank" class="report-link">Mobily B2C - Defect Management Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">9ff2572c...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="mobily b2c - testing report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/1f67d572-926d-45ae-b1cf-b0545b7e8e5a" target="_blank" class="report-link">Mobily B2C - Testing Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">9ff2572c...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="comcast - estimate traceability report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/aee8469a-9791-4081-bc38-b1052abccd09" target="_blank" class="report-link">Comcast - Estimate Traceability Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">71e09aff...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="mascom - estimate traceability report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/0ca63af4-dbd7-45ac-8a7b-f941cbf92eff" target="_blank" class="report-link">Mascom - Estimate Traceability Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">52147da4...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="dw practice reporting">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/8b5e415b-87cf-4c62-a8c8-04e92da0fa9d" target="_blank" class="report-link">DW Practice Reporting</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">fc50d133...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="telenor denmark  - testing report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/97e2b38b-6d80-4c6e-97b7-7ef579d58861" target="_blank" class="report-link">Telenor Denmark  - Testing Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">fc8f9ebc...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="telenor denmark - defect management report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/31e339aa-dea1-4a6b-b8b3-11a6038c66a4" target="_blank" class="report-link">Telenor Denmark - Defect Management Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">fc8f9ebc...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="report usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/e55b4142-4562-4232-b66b-84ac347824b1" target="_blank" class="report-link">Report Usage Metrics Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">2ca8ce4d...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/050dc1a6-fbad-4b33-8962-cf60d48b7b66" target="_blank" class="report-link">Usage Metrics Report</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">37dfa556...</td>
+            </tr>
+            <tr data-workspace="SAFe Agile Practices" data-name="ado - csgdevopsautomation - csg-wk-mgmt - dw practice reporting">
+                <td><a href="https://app.powerbi.com/groups/27601cea-574d-4ff1-8ea9-6931b03018b1/reports/3c5db1e2-72ea-4b70-b3d8-f4057db1c672" target="_blank" class="report-link">ADO - CSGDevOpsAutomation - CSG-Wk-Mgmt - DW Practice Reporting</a></td>
+                <td>SAFe Agile Practices</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">fc50d133...</td>
+            </tr>
+            <tr data-workspace="CABS GCI" data-name="cabs">
+                <td><a href="https://app.powerbi.com/groups/798056a3-85a5-4e98-a41b-b8921feb3e78/reports/2c5ca450-3fae-41b0-bd30-52fd5c62515e" target="_blank" class="report-link">CABS</a></td>
+                <td>CABS GCI</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">2f599350...</td>
+            </tr>
+            <tr data-workspace="CABS MTA" data-name="cabs">
+                <td><a href="https://app.powerbi.com/groups/91525dee-aba4-4b8a-becb-12ec356ae6eb/reports/1e7023f4-5076-4a12-8736-8a947f5e607f" target="_blank" class="report-link">CABS</a></td>
+                <td>CABS MTA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">84ec38af...</td>
+            </tr>
+            <tr data-workspace="CSG Track" data-name="csg track">
+                <td><a href="https://app.powerbi.com/groups/f4334b38-1058-4f45-bed7-9f0768105614/reports/6601f0db-fa23-4756-a216-f86dfddc7304" target="_blank" class="report-link">CSG Track</a></td>
+                <td>CSG Track</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">ecfc0300...</td>
+            </tr>
+            <tr data-workspace="CSG Track" data-name="report usage metrics report">
+                <td><a href="https://app.powerbi.com/groups/f4334b38-1058-4f45-bed7-9f0768105614/reports/b8ea9607-ea0a-47db-a0e7-1fec667d1327" target="_blank" class="report-link">Report Usage Metrics Report</a></td>
+                <td>CSG Track</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">a324cf0c...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="interactive">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/31611487-bdae-4df8-b61e-c954848ea2b7" target="_blank" class="report-link">INTERACTIVE</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">9069e6ae...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="helix">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/e3a4e1c7-9a19-4bf9-986b-43a60733b340" target="_blank" class="report-link">Helix</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">f0af0d56...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="ime">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/7f470a95-f567-44ab-9f7e-51487519a1df" target="_blank" class="report-link">IME</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">[IME] [TRACK] [Reports] [Intermediate] [Mediation]</td>
+                <td>-</td>
+                <td class="dataset-id">b1846ba3...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="interconnect_template">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/954156e4-98ab-45d1-bcfe-7312a4b45eed" target="_blank" class="report-link">Interconnect_Template</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">e09697f4...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="encompass_template">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/889ed4e2-b287-48ce-a713-1ab69a63819d" target="_blank" class="report-link">Encompass_Template</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">9096eed2...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="csg people">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/3287f4e9-c756-4510-8175-4a2bc45502da" target="_blank" class="report-link">CSG People</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">451f95ad...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="mtc_powerautomatepoc">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/46170b0a-d6d6-4281-9df9-f43213fe59fb" target="_blank" class="report-link">MTC_PowerAutomatePOC</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">627ec640...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="test_mtc_exchange_poc">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/4c62d675-e1fb-43f5-9421-43bd1c7f97fa" target="_blank" class="report-link">Test_MTC_Exchange_POC</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">bce2dbe9...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="csg act resource utilization report">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/04c01fb8-4b43-4491-abfc-76da263db6a1" target="_blank" class="report-link">CSG ACT Resource Utilization Report</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">f0378a55...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="route">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/95f4866a-ae06-451e-9134-3aac9ab296e1" target="_blank" class="report-link">Route</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">c52ee0d5...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="csg act activity forecasting">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/59a34d23-f395-47b4-9b26-2469ccca332a" target="_blank" class="report-link">CSG ACT Activity Forecasting</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">75f142c2...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="interconnect_template_tch">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/9010f65f-4f52-45e8-aa74-34006e33c870" target="_blank" class="report-link">Interconnect_Template_TCH</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">f0a41da3...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="fam">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/6f02995e-942a-473e-9a10-2c3538a1361a" target="_blank" class="report-link">FAM</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">d0bb10c6...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="ifm_2.0">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/7eb1bd35-9d61-4040-99b8-1893a4888b99" target="_blank" class="report-link">IFM_2.0</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">e88cdcfc...</td>
+            </tr>
+            <tr data-workspace="PBI Migration - QA" data-name="drm">
+                <td><a href="https://app.powerbi.com/groups/ce28117d-a92c-4512-b951-ed4a7e95fa22/reports/70f04a84-7dd7-47f2-8cba-4791ca20a584" target="_blank" class="report-link">DRM</a></td>
+                <td>PBI Migration - QA</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">ab4ef302...</td>
+            </tr>
+            <tr data-workspace="Change CAB/eCAB" data-name="cab crq report">
+                <td><a href="https://app.powerbi.com/groups/e3c15cfc-67fe-4963-a4aa-185a266d3118/reports/122e05cd-dd98-4fa5-b535-3c6cec84f149" target="_blank" class="report-link">CAB CRQ Report</a></td>
+                <td>Change CAB/eCAB</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">df21e103...</td>
+            </tr>
+            <tr data-workspace="Change CAB/eCAB" data-name="ecab crq report">
+                <td><a href="https://app.powerbi.com/groups/e3c15cfc-67fe-4963-a4aa-185a266d3118/reports/524454b7-77b4-4d12-a183-bcdbbe79489c" target="_blank" class="report-link">eCAB CRQ Report</a></td>
+                <td>Change CAB/eCAB</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">df21e103...</td>
+            </tr>
+            <tr data-workspace="IME - POC App" data-name="ime">
+                <td><a href="https://app.powerbi.com/groups/2a114b5d-23c5-4dc8-a5c2-ba7f00b078db/reports/69b350bb-5d36-4d4a-b83c-2d27740dc4e1" target="_blank" class="report-link">IME</a></td>
+                <td>IME - POC App</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">a1cbe1a6...</td>
+            </tr>
+            <tr data-workspace="IME - POC App" data-name="group1-systemcapacity-load">
+                <td><a href="https://app.powerbi.com/groups/2a114b5d-23c5-4dc8-a5c2-ba7f00b078db/reports/ef4074b3-9a49-4cba-bc4c-b455af308c35" target="_blank" class="report-link">Group1-SystemCapacity-Load</a></td>
+                <td>IME - POC App</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">a1cbe1a6...</td>
+            </tr>
+            <tr data-workspace="IME - POC App" data-name="group1-systemcapacity-cpu">
+                <td><a href="https://app.powerbi.com/groups/2a114b5d-23c5-4dc8-a5c2-ba7f00b078db/reports/a17b7367-7a81-4515-9756-294ade7a8d6b" target="_blank" class="report-link">Group1-SystemCapacity-CPU</a></td>
+                <td>IME - POC App</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">a1cbe1a6...</td>
+            </tr>
+            <tr data-workspace="IME - POC App" data-name="group2-volume-volume_trends">
+                <td><a href="https://app.powerbi.com/groups/2a114b5d-23c5-4dc8-a5c2-ba7f00b078db/reports/eae961e2-3abb-44e0-af48-2e4cdc1444ad" target="_blank" class="report-link">Group2-Volume-Volume_Trends</a></td>
+                <td>IME - POC App</td>
+                <td class="description">-</td>
+                <td>-</td>
+                <td class="dataset-id">a1cbe1a6...</td>
+            </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="duplicates" class="tab-content">
+            <table>
+                <thead><tr><th>Report 1</th><th>Workspace 1</th><th>Report 2</th><th>Workspace 2</th><th>Similarity</th></tr></thead>
+                <tbody>
+            <tr>
+                <td>Feature Project Analysis</td>
+                <td>CBU Reporting DS</td>
+                <td>Feature Projects</td>
+                <td>Jira</td>
+                <td>80%</td>
+            </tr>
+            <tr>
+                <td>Fantasy Premier League</td>
+                <td>CSG Global Fantasy Premier League Banter</td>
+                <td>Fantasy Premier League</td>
+                <td>FPL CSG</td>
+                <td>100%</td>
+            </tr>
+            <tr>
+                <td>myHelix</td>
+                <td>General CSG Reports</td>
+                <td>Helix</td>
+                <td>PBI Migration - QA</td>
+                <td>83%</td>
+            </tr>
+            <tr>
+                <td>CABS</td>
+                <td>CABS GCI</td>
+                <td>CABS</td>
+                <td>CABS MTA</td>
+                <td>100%</td>
+            </tr>
+            <tr>
+                <td>IME</td>
+                <td>PBI Migration - QA</td>
+                <td>IME</td>
+                <td>IME - POC App</td>
+                <td>100%</td>
+            </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="shared" class="tab-content">
+            <table>
+                <thead><tr><th>Dataset ID</th><th>Workspaces</th><th>Reports</th><th>Report Names</th><th>Used In</th></tr></thead>
+                <tbody>
+            <tr>
+                <td>1c535277-e3a...</td>
+                <td>3</td>
+                <td>6</td>
+                <td class="description">CBU Client Facing Status_Phase1, Monthly Details, User Story status by CBU, CBU - Charter Features, Feature Projects (+1 more)</td>
+                <td>CBU Reporting DS, General CSG Reports, Jira</td>
+            </tr>
+            <tr>
+                <td>df21e103-e5a...</td>
+                <td>2</td>
+                <td>6</td>
+                <td class="description">CRQ Task Lookup Report, Precision eCare Pay Kiosk Report, Enterprise Interfaces - Yearly CRQ report, myHelix, CAB CRQ Report (+1 more)</td>
+                <td>Change CAB/eCAB, General CSG Reports</td>
+            </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <footer>Last updated: 2026-01-22 12:23:57 | Scanned via User API (your workspaces only)</footer>
+    <script>
+        function filterTable() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            const workspaceFilter = document.getElementById('workspaceFilter').value;
+            const rows = document.querySelectorAll('#catalogBody tr');
+            let visibleCount = 0;
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name') || '';
+                const workspace = row.getAttribute('data-workspace') || '';
+                const matchesSearch = name.includes(searchText);
+                const matchesWorkspace = !workspaceFilter || workspace === workspaceFilter;
+                if (matchesSearch && matchesWorkspace) { row.classList.remove('hidden'); visibleCount++; } 
+                else { row.classList.add('hidden'); }
+            });
+            document.getElementById('resultsCount').textContent = `Showing ${visibleCount} reports`;
+        }
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
